@@ -26,6 +26,19 @@ from pts.distributions import ZeroInflatedNegativeBinomial, ZeroInflatedPoisson
 
 
 class IndependentDistributionOutput(DistributionOutput):
+    """
+    Compute the negative log likelihood loss.
+
+    Parameters
+    ----------
+    beta: float in range (0, 1)
+        beta parameter from the paper: "On the Pitfalls of Heteroscedastic
+        Uncertainty Estimation with Probabilistic Neural Networks" by
+        Seitzer et al. 2022
+        https://openreview.net/forum?id=aPOpXlnV1T
+    """
+
+    beta: float = 0.0
     @validated()
     def __init__(self, dim: Optional[int] = None) -> None:
         self.dim = dim

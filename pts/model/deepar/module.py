@@ -21,7 +21,6 @@ from gluonts.model import Input, InputSpec
 from gluonts.time_feature import get_lags_for_frequency
 from gluonts.torch.distributions import DistributionOutput
 from gluonts.torch.modules.feature import FeatureEmbedder
-from gluonts.torch.modules.loss import DistributionLoss, NegativeLogLikelihood
 from gluonts.torch.scaler import MeanScaler, NOPScaler, Scaler, StdScaler
 from gluonts.torch.util import repeat_along_dim, unsqueeze_expand
 
@@ -431,6 +430,7 @@ class DeepARModel(nn.Module):
             repeated_params, trailing_n=1, loc=repeated_loc, scale=repeated_scale
         )
         next_sample = distr.sample()
+
         future_samples = [next_sample]
 
         for k in range(1, self.prediction_length):
@@ -442,6 +442,7 @@ class DeepARModel(nn.Module):
             next_lags = lagged_sequence_values(
                 self.lags_seq, repeated_past_target, scaled_next_sample, dim=1
             )
+
             rnn_input = torch.cat((next_lags, next_features), dim=-1)
 
             output, repeated_state = self.rnn(rnn_input, repeated_state)
@@ -482,7 +483,6 @@ class DeepARModel(nn.Module):
             future_time_feat=future_time_feat,
             future_target=future_target,
             future_observed_values=torch.ones_like(future_target),
-            loss=NegativeLogLikelihood(),
             future_only=True,
             aggregate_by=torch.sum,
         )
@@ -497,7 +497,6 @@ class DeepARModel(nn.Module):
         future_time_feat: torch.Tensor,
         future_target: torch.Tensor,
         future_observed_values: torch.Tensor,
-        loss: DistributionLoss = NegativeLogLikelihood(),
         future_only: bool = False,
         aggregate_by=torch.mean,
     ) -> torch.Tensor:
@@ -533,17 +532,17 @@ class DeepARModel(nn.Module):
         )
 
         if future_only:
-            distr = self.output_distribution(
-                params, loc=loc, scale=scale, trailing_n=self.prediction_length
+            sliced_params = tuple(
+                [p[:, -self.prediction_length :] for p in params]
             )
-            observed_values = (
-                future_observed_reshaped.all(-1)
-                if future_observed_reshaped.ndim == 3
-                else future_observed_reshaped
+            loss_values = self.distr_output.loss(
+                target=future_target_reshaped,
+                distr_args=sliced_params,
+                scale=scale,
             )
-            loss_values = loss(distr, future_target_reshaped) * observed_values
+            loss_values = loss_values * future_observed_reshaped
         else:
-            distr = self.output_distribution(params, loc=loc, scale=scale)
+
             context_target = past_target[:, -self.context_length + 1 :, ...]
             target = torch.cat(
                 (context_target, future_target_reshaped),
@@ -558,6 +557,9 @@ class DeepARModel(nn.Module):
                 if observed_values.ndim == 3
                 else observed_values
             )
-            loss_values = loss(distr, target) * observed_values
+            loss_values = self.distr_output.loss(
+                target=target, distr_args=params, scale=scale
+            )
+            loss_values = loss_values * observed_values
 
         return aggregate_by(loss_values, dim=(1,))

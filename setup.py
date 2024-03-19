@@ -16,9 +16,10 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "torch>=1.8.0",
-        "pytorch-lightning",
+        "lightning>=2.0,<2.2",
+        "pytorch_lightning>=2.0,<2.2",
         "protobuf~=3.20.3",
-        "gluonts>=0.13.0",
+        "gluonts @ git+https://github.com/awslabs/gluonts.git@dev",
         "holidays",
         "matplotlib",
         "diffusers",

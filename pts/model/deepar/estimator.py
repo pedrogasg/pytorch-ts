@@ -24,7 +24,6 @@ from gluonts.time_feature import TimeFeature, time_features_from_frequency_str
 from gluonts.torch.distributions import DistributionOutput
 from gluonts.torch.model.estimator import PyTorchLightningEstimator
 from gluonts.torch.model.predictor import PyTorchPredictor
-from gluonts.torch.modules.loss import DistributionLoss, NegativeLogLikelihood
 from gluonts.transform import (
     AddAgeFeature,
     AddObservedValuesIndicator,
@@ -113,9 +112,6 @@ class DeepAREstimator(PyTorchLightningEstimator):
     distr_output
         Distribution to use to evaluate observations and sample predictions
         (default: StudentTOutput()).
-    loss
-        Loss to be optimized during training
-        (default: ``NegativeLogLikelihood()``).
     scaling
         Whether to automatically scale the target values (default: "mean"). Can be
         set to "none" to disable scaling, to "std" to apply Std Scaling, or to
@@ -167,7 +163,6 @@ class DeepAREstimator(PyTorchLightningEstimator):
         cardinality: Optional[List[int]] = None,
         embedding_dimension: Optional[List[int]] = None,
         distr_output: DistributionOutput = StudentTOutput(),
-        loss: DistributionLoss = NegativeLogLikelihood(),
         scaling: Optional[str] = "mean",
         default_scale: float = 0.0,
         lags_seq: Optional[List[int]] = None,
@@ -196,7 +191,6 @@ class DeepAREstimator(PyTorchLightningEstimator):
         )
         self.patience = patience
         self.distr_output = distr_output
-        self.loss = loss
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.lr = lr
@@ -372,7 +366,6 @@ class DeepAREstimator(PyTorchLightningEstimator):
 
     def create_lightning_module(self) -> DeepARLightningModule:
         return DeepARLightningModule(
-            loss=self.loss,
             lr=self.lr,
             weight_decay=self.weight_decay,
             patience=self.patience,
